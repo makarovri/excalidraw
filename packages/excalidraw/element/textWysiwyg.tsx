@@ -576,6 +576,12 @@ export const textWysiwyg = ({
     });
   };
 
+  const onBlur = () => {
+    if (document.activeElement !== editable) {
+      handleSubmit();
+    }
+  };
+
   const cleanup = () => {
     // remove events to ensure they don't late-fire
     editable.onblur = null;
@@ -588,9 +594,7 @@ export const textWysiwyg = ({
 
     window.removeEventListener("resize", updateWysiwygStyle);
     window.removeEventListener("wheel", stopEvent, true);
-    window.removeEventListener("pointerdown", onPointerDown);
-    window.removeEventListener("pointerup", bindBlurEvent);
-    window.removeEventListener("blur", handleSubmit);
+    window.removeEventListener("pointerdown", onPointerDown, { capture: true });
     window.removeEventListener("beforeunload", handleSubmit);
     unbindUpdate();
 
@@ -598,7 +602,6 @@ export const textWysiwyg = ({
   };
 
   const bindBlurEvent = (event?: MouseEvent) => {
-    window.removeEventListener("pointerup", bindBlurEvent);
     // Deferred so that the pointerdown that initiates the wysiwyg doesn't
     // trigger the blur on ensuing pointerup.
     // Also to handle cases such as picking a color which would trigger a blur
@@ -610,7 +613,7 @@ export const textWysiwyg = ({
       target.classList.contains("properties-trigger");
 
     setTimeout(() => {
-      editable.onblur = handleSubmit;
+      editable.onblur = onBlur;
 
       // case: clicking on the same property → no change → no update → no focus
       if (!isPropertiesTrigger) {
@@ -634,11 +637,10 @@ export const textWysiwyg = ({
         !isWritableElement(event.target)) ||
       isPropertiesTrigger
     ) {
-      editable.onblur = null;
-      window.addEventListener("pointerup", bindBlurEvent);
-      // handle edge-case where pointerup doesn't fire e.g. due to user
-      // alt-tabbing away
-      window.addEventListener("blur", handleSubmit);
+      // blurring shall reset the blur handler instead of invoking it
+      editable.onblur = () => {
+        editable.onblur = onBlur;
+      };
     } else if (
       event.target instanceof HTMLElement &&
       event.target instanceof HTMLCanvasElement &&
