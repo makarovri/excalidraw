@@ -22,10 +22,34 @@ export const alignElements = (
 
   // #8522 Allow grouped elements to align within group
   // --------------------------------------------------
-  const unpackedGroups =
+  const maxNestingDepth = selectedElements.reduce((prev, element) => {
+    return Math.max(prev, element.groupIds.length);
+  }, 0);
+
+  let offset = 1;
+  let nestedGroups =
     groups.length > 1
       ? groups
-      : groups.flatMap((group) => group.map((elements) => [elements]));
+      : getMaximumGroups(selectedElements, elementsMap, offset);
+  let prev = nestedGroups;
+
+  while (
+    JSON.stringify(prev) === JSON.stringify(nestedGroups) &&
+    offset < maxNestingDepth
+  ) {
+    prev = nestedGroups;
+    offset += 1;
+    nestedGroups =
+      nestedGroups.length > 1
+        ? nestedGroups
+        : getMaximumGroups(selectedElements, elementsMap, offset);
+  }
+
+  const unpackedGroups =
+    nestedGroups.length > 1
+      ? nestedGroups
+      : nestedGroups.flatMap((group) => group.map((elements) => [elements]));
+  // --------------------------------------------------
 
   return unpackedGroups.flatMap((group) => {
     const translation = calculateTranslation(
